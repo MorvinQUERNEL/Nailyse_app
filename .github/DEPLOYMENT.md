@@ -1,120 +1,147 @@
-# Deployment Guide - Nailyse
+# Deployment Guide - Nailyse sur Hostinger
 
-## GitHub Actions Workflow
+## Configuration GitHub Actions
 
-Le workflow CI/CD se declenche automatiquement lors d'un push sur les branches `main` ou `develop`.
+### Secrets a configurer
 
-### Pipeline
+Dans **GitHub > Settings > Secrets and variables > Actions > Secrets**:
 
-1. **Backend Job**: Installe PHP 8.2, les dependances Composer, cree la base de donnees de test, valide le schema Doctrine
-2. **Frontend Job**: Installe Node.js 20, les dependances npm, lint le code, build le projet React
-3. **Deploy Job**: Se declenche uniquement sur la branche `main` apres validation des deux jobs precedents
+| Secret | Description | Exemple |
+|--------|-------------|---------|
+| `FTP_HOST` | Serveur FTP Hostinger | `ftp.tondomaine.com` |
+| `FTP_USER` | Utilisateur FTP | `u123456789` |
+| `FTP_PASSWORD` | Mot de passe FTP | `MotDePasseFTP123` |
+| `APP_SECRET` | Cle secrete Symfony (32 chars) | `a1b2c3d4e5f6...` |
+| `DATABASE_URL` | URL MySQL Hostinger | `mysql://user:pass@localhost:3306/dbname` |
+| `STRIPE_SECRET_KEY` | Cle secrete Stripe | `sk_live_...` |
+| `MAILER_DSN` | Config email Hostinger | `smtp://user:pass@smtp.hostinger.com:587` |
 
-## Secrets a configurer
+### Variables a configurer
 
-Dans **Settings > Secrets and variables > Actions** de votre repository GitHub:
-
-### Variables d'environnement (Settings > Variables)
+Dans **GitHub > Settings > Secrets and variables > Actions > Variables**:
 
 | Variable | Description | Exemple |
 |----------|-------------|---------|
-| `API_URL` | URL de l'API backend en production | `https://api.nailyse.fr` |
+| `API_URL` | URL de l'API backend | `https://api.tondomaine.com` |
+| `DOMAIN` | Domaine principal (sans www) | `tondomaine.com` |
+| `BACKEND_PATH` | Chemin FTP du backend | `/public_html/api/` |
+| `FRONTEND_PATH` | Chemin FTP du frontend | `/public_html/` |
 
-### Secrets requis selon le type de deploiement
+## Ou trouver les infos sur Hostinger
 
-#### Option 1: Deploiement VPS (SSH)
+### Credentials FTP
+1. Connecte-toi a hPanel (panel.hostinger.com)
+2. Va dans **Hebergement** > **Ton site**
+3. Section **Fichiers** > **Comptes FTP**
+4. Copie: Hote, Nom d'utilisateur, Mot de passe
 
-| Secret | Description |
-|--------|-------------|
-| `SERVER_HOST` | Adresse IP ou domaine du serveur |
-| `SERVER_USER` | Utilisateur SSH pour la connexion |
-| `SSH_PRIVATE_KEY` | Cle SSH privee (format OpenSSH) |
+### Base de donnees MySQL
+1. hPanel > **Bases de donnees** > **MySQL**
+2. Cree une base de donnees si necessaire
+3. Note: Nom de la BDD, Utilisateur, Mot de passe, Hote (souvent `localhost`)
+4. Format: `mysql://UTILISATEUR:MOT_DE_PASSE@localhost:3306/NOM_BDD`
 
-#### Option 2: Vercel (Frontend) + Railway/Render (Backend)
+### Email SMTP (pour Mailer)
+1. hPanel > **Emails** > **Comptes email**
+2. Cree un compte email (ex: `noreply@tondomaine.com`)
+3. Config SMTP:
+   - Hote: `smtp.hostinger.com`
+   - Port: `587` (TLS) ou `465` (SSL)
+   - Format: `smtp://EMAIL:MOT_DE_PASSE@smtp.hostinger.com:587`
 
-| Secret | Description |
-|--------|-------------|
-| `VERCEL_TOKEN` | Token API Vercel |
-| `VERCEL_ORG_ID` | ID de l'organisation Vercel |
-| `VERCEL_PROJECT_ID` | ID du projet Vercel |
+## Structure des fichiers sur Hostinger
 
-#### Option 3: Platform.sh
-
-| Secret | Description |
-|--------|-------------|
-| `PLATFORMSH_PROJECT_ID` | ID du projet Platform.sh |
-| `PLATFORMSH_CLI_TOKEN` | Token CLI Platform.sh |
-
-### Secrets de l'application (Production)
-
-Ces secrets doivent etre configures sur votre serveur de production:
-
-| Variable | Description |
-|----------|-------------|
-| `APP_SECRET` | Cle secrete Symfony (32 caracteres) |
-| `DATABASE_URL` | URL de connexion PostgreSQL/MySQL |
-| `STRIPE_SECRET_KEY` | Cle secrete Stripe (commence par `sk_live_`) |
-| `STRIPE_PUBLISHABLE_KEY` | Cle publique Stripe (commence par `pk_live_`) |
-| `MAILER_DSN` | Configuration SMTP pour les emails |
-
-## Configuration Production
-
-### Backend (.env.local sur le serveur)
-
-```env
-APP_ENV=prod
-APP_SECRET=votre_secret_32_caracteres
-DATABASE_URL=postgresql://user:password@localhost:5432/nailyse?serverVersion=15
-STRIPE_SECRET_KEY=sk_live_...
-MAILER_DSN=smtp://user:password@smtp.mailtrap.io:2525
-CORS_ALLOW_ORIGIN='^https?://(www\.)?nailyse\.fr$'
+```
+public_html/
+├── index.html          (Frontend React)
+├── assets/             (JS/CSS build)
+├── api/                (Backend Symfony)
+│   ├── public/
+│   │   └── index.php   (Point d'entree API)
+│   ├── src/
+│   ├── config/
+│   ├── var/
+│   ├── vendor/
+│   └── .env.local      (Config production)
 ```
 
-### Frontend (.env.production)
+## Configuration .htaccess
 
-```env
-VITE_API_URL=https://api.nailyse.fr
-VITE_STRIPE_PUBLISHABLE_KEY=pk_live_...
+### Frontend (public_html/.htaccess)
+```apache
+RewriteEngine On
+RewriteBase /
+
+# Redirige vers HTTPS
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# React Router - SPA fallback
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/api/
+RewriteRule ^ index.html [L]
+
+# Proxy vers API
+RewriteRule ^api/(.*)$ /api/public/index.php/$1 [L,QSA]
 ```
 
-## Commandes de deploiement manuel
+### Backend (public_html/api/public/.htaccess)
+```apache
+DirectoryIndex index.php
 
-### Backend
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+# CORS Headers
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+</IfModule>
+```
+
+## Apres le premier deploiement
+
+Connecte-toi en SSH ou utilise le terminal Hostinger:
+
 ```bash
-cd backend
-composer install --no-dev --optimize-autoloader
+cd public_html/api
+
+# Lancer les migrations
 php bin/console doctrine:migrations:migrate --no-interaction
-php bin/console cache:clear --env=prod
-php bin/console cache:warmup --env=prod
+
+# Charger les donnees de test (optionnel)
+php bin/console doctrine:fixtures:load --no-interaction
+
+# Verifier que tout fonctionne
+php bin/console about
 ```
 
-### Frontend
+## Generer APP_SECRET
+
 ```bash
-cd frontend
-npm ci
-npm run build
-# Les fichiers sont dans dist/
+# Sur ton PC local
+php -r "echo bin2hex(random_bytes(16));"
+# ou
+openssl rand -hex 32
 ```
 
-## Architecture recommandee
+## Depannage
 
-```
-                    [GitHub Actions]
-                          |
-        +-----------------+-----------------+
-        |                                   |
-   [Backend Build]                   [Frontend Build]
-        |                                   |
-        v                                   v
-   [PHP/Symfony]                      [Static Files]
-   [API Server]                       [CDN/Nginx]
-        |                                   |
-        +-----------------------------------+
-                          |
-                    [Load Balancer]
-                          |
-                    [Production]
-```
+### Erreur 500
+- Verifie les logs: `public_html/api/var/log/prod.log`
+- Verifie les permissions: `chmod -R 755 var/`
+
+### API non accessible
+- Verifie que `/api/public/index.php` existe
+- Verifie le `.htaccess`
+- Teste: `https://tondomaine.com/api/products`
+
+### Probleme de base de donnees
+- Verifie `DATABASE_URL` dans `.env.local`
+- Teste la connexion MySQL dans hPanel
 
 ## Support
 

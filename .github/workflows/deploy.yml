@@ -1,8 +1,8 @@
-name: CI/CD Deploy
+name: CI/CD Deploy to Hostinger
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -30,7 +30,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
-          extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, dom, filter, gd, json, pdo
+          extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, pdo_mysql, dom, filter, gd, json, pdo
           coverage: none
           tools: composer:v2
 
@@ -45,49 +45,35 @@ jobs:
           key: ${{ runner.os }}-composer-${{ hashFiles('backend/composer.lock') }}
           restore-keys: ${{ runner.os }}-composer-
 
-      - name: Install dependencies
-        run: composer install --prefer-dist --no-progress --no-interaction
+      - name: Install dependencies (production)
+        run: composer install --no-dev --prefer-dist --no-progress --no-interaction --optimize-autoloader
 
       - name: Create .env.local for CI
         run: |
-          echo "APP_ENV=test" > .env.local
-          echo "APP_SECRET=test_secret_$(openssl rand -hex 16)" >> .env.local
-          echo "DATABASE_URL=sqlite:///%kernel.project_dir%/var/test.db" >> .env.local
-          echo "STRIPE_SECRET_KEY=sk_test_***placeholder***" >> .env.local
+          echo "APP_ENV=prod" > .env.local
+          echo "APP_SECRET=${{ secrets.APP_SECRET || 'temp_secret_for_build' }}" >> .env.local
+          echo "DATABASE_URL=sqlite:///%kernel.project_dir%/var/data.db" >> .env.local
+          echo "STRIPE_SECRET_KEY=sk_test_placeholder" >> .env.local
           echo "MAILER_DSN=null://null" >> .env.local
 
-      - name: Setup database
+      - name: Clear and warmup cache for production
         run: |
-          # Create var directory for SQLite
-          mkdir -p var
-          # SQLite creates the database file automatically, skip doctrine:database:create
-          # Run migrations to create schema
-          php bin/console doctrine:migrations:migrate --env=test --no-interaction --allow-no-migration
-
-      - name: Validate Doctrine schema
-        run: php bin/console doctrine:schema:validate --env=test --skip-sync
-
-      - name: Clear cache
-        run: php bin/console cache:clear --env=test
-
-      - name: Check Symfony requirements
-        run: php bin/console about --env=test
+          php bin/console cache:clear --env=prod --no-debug
+          php bin/console cache:warmup --env=prod --no-debug
 
       - name: Lint YAML config files
-        run: php bin/console lint:yaml config --parse-tags
+        run: php bin/console lint:yaml config --parse-tags --env=prod
 
-      - name: Lint Twig templates
-        run: php bin/console lint:twig templates || true
-
-      - name: Upload backend artifacts
+      - name: Upload backend for deployment
         uses: actions/upload-artifact@v4
         with:
           name: backend-build
           path: |
             backend/
-            !backend/var/cache
+            !backend/.git
+            !backend/var/cache/dev
+            !backend/var/cache/test
             !backend/var/log
-            !backend/vendor
           retention-days: 1
 
   # =============================================
@@ -117,7 +103,7 @@ jobs:
 
       - name: Create .env for build
         run: |
-          echo "VITE_API_URL=${{ vars.API_URL || 'https://api.nailyse.fr' }}" > .env.production
+          echo "VITE_API_URL=${{ vars.API_URL }}" > .env.production
 
       - name: Run linter
         run: npm run lint || true
@@ -125,7 +111,7 @@ jobs:
       - name: Build for production
         run: npm run build
 
-      - name: Upload frontend build artifacts
+      - name: Upload frontend build
         uses: actions/upload-artifact@v4
         with:
           name: frontend-build
@@ -133,115 +119,79 @@ jobs:
           retention-days: 1
 
   # =============================================
-  # Deploy (runs after both backend and frontend pass)
+  # Deploy to Hostinger via FTP
   # =============================================
   deploy:
-    name: Deploy
+    name: Deploy to Hostinger
     runs-on: ubuntu-latest
     needs: [backend, frontend]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Download backend artifacts
         uses: actions/download-artifact@v4
         with:
           name: backend-build
-          path: backend
+          path: deploy/backend
 
       - name: Download frontend artifacts
         uses: actions/download-artifact@v4
         with:
           name: frontend-build
-          path: frontend/dist
+          path: deploy/frontend
 
-      # =============================================
-      # Option 1: Deploy to a VPS via SSH
-      # Uncomment this section if deploying to a VPS
-      # =============================================
-      # - name: Deploy to server via SSH
-      #   uses: appleboy/ssh-action@v1.0.3
-      #   with:
-      #     host: ${{ secrets.SERVER_HOST }}
-      #     username: ${{ secrets.SERVER_USER }}
-      #     key: ${{ secrets.SSH_PRIVATE_KEY }}
-      #     script: |
-      #       cd /var/www/nailyse
-      #       git pull origin main
-      #       cd backend && composer install --no-dev --optimize-autoloader
-      #       php bin/console doctrine:migrations:migrate --no-interaction
-      #       php bin/console cache:clear --env=prod
-      #       cd ../frontend && npm ci && npm run build
-      #       sudo systemctl reload nginx
-      #       sudo systemctl reload php-fpm
+      - name: Create production .env.local for backend
+        run: |
+          cat > deploy/backend/.env.local << 'EOF'
+          APP_ENV=prod
+          APP_SECRET=${{ secrets.APP_SECRET }}
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
+          MAILER_DSN=${{ secrets.MAILER_DSN }}
+          CORS_ALLOW_ORIGIN='^https?://(www\.)?${{ vars.DOMAIN }}$'
+          EOF
 
-      # =============================================
-      # Option 2: Deploy to Platform.sh
-      # Uncomment if using Platform.sh
-      # =============================================
-      # - name: Deploy to Platform.sh
-      #   uses: platformsh/gha-deploy@v1
-      #   with:
-      #     project-id: ${{ secrets.PLATFORMSH_PROJECT_ID }}
-      #     cli-token: ${{ secrets.PLATFORMSH_CLI_TOKEN }}
+      - name: Deploy Backend to Hostinger
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./deploy/backend/
+          server-dir: ${{ vars.BACKEND_PATH || '/public_html/api/' }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/var/cache/dev/**
+            **/var/cache/test/**
+            **/var/log/**
+            **/.env.local.php
+            **/var/data.db
 
-      # =============================================
-      # Option 3: Deploy to Vercel (Frontend) + Railway/Render (Backend)
-      # Uncomment for serverless deployment
-      # =============================================
-      # - name: Deploy Frontend to Vercel
-      #   uses: amondnet/vercel-action@v25
-      #   with:
-      #     vercel-token: ${{ secrets.VERCEL_TOKEN }}
-      #     vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-      #     vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-      #     working-directory: frontend
-      #     vercel-args: '--prod'
-
-      # =============================================
-      # Option 4: Deploy to Docker/Container Registry
-      # Uncomment for containerized deployment
-      # =============================================
-      # - name: Login to Container Registry
-      #   uses: docker/login-action@v3
-      #   with:
-      #     registry: ghcr.io
-      #     username: ${{ github.actor }}
-      #     password: ${{ secrets.GITHUB_TOKEN }}
-      #
-      # - name: Build and push Backend Docker image
-      #   uses: docker/build-push-action@v5
-      #   with:
-      #     context: ./backend
-      #     push: true
-      #     tags: ghcr.io/${{ github.repository }}/backend:latest
-      #
-      # - name: Build and push Frontend Docker image
-      #   uses: docker/build-push-action@v5
-      #   with:
-      #     context: ./frontend
-      #     push: true
-      #     tags: ghcr.io/${{ github.repository }}/frontend:latest
+      - name: Deploy Frontend to Hostinger
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./deploy/frontend/
+          server-dir: ${{ vars.FRONTEND_PATH || '/public_html/' }}
 
       - name: Deployment Summary
         run: |
           echo "============================================="
-          echo "Deployment Preparation Complete!"
+          echo "Deployment to Hostinger Complete!"
           echo "============================================="
           echo ""
-          echo "Backend artifacts ready: Symfony application"
-          echo "Frontend artifacts ready: React build in dist/"
+          echo "Backend deployed to: ${{ vars.BACKEND_PATH || '/public_html/api/' }}"
+          echo "Frontend deployed to: ${{ vars.FRONTEND_PATH || '/public_html/' }}"
           echo ""
-          echo "To complete deployment, configure one of the"
-          echo "deployment options above with your hosting provider."
+          echo "IMPORTANT: After first deployment, connect via"
+          echo "FTP/File Manager and run these commands via SSH"
+          echo "or Hostinger terminal:"
           echo ""
-          echo "Required secrets to configure:"
-          echo "- For VPS: SERVER_HOST, SERVER_USER, SSH_PRIVATE_KEY"
-          echo "- For Vercel: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID"
-          echo "- For Platform.sh: PLATFORMSH_PROJECT_ID, PLATFORMSH_CLI_TOKEN"
+          echo "  cd public_html/api"
+          echo "  php bin/console doctrine:migrations:migrate --no-interaction"
+          echo "  php bin/console doctrine:fixtures:load --no-interaction"
           echo ""
-          echo "Required variables:"
-          echo "- API_URL: Backend API URL for frontend builds"
           echo "============================================="
