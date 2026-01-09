@@ -56,10 +56,13 @@ jobs:
           echo "STRIPE_SECRET_KEY=sk_test_***placeholder***" >> .env.local
           echo "MAILER_DSN=null://null" >> .env.local
 
-      - name: Create database
+      - name: Setup database
         run: |
-          php bin/console doctrine:database:create --env=test --if-not-exists
-          php bin/console doctrine:migrations:migrate --env=test --no-interaction
+          # Create var directory for SQLite
+          mkdir -p var
+          # SQLite creates the database file automatically, skip doctrine:database:create
+          # Run migrations to create schema
+          php bin/console doctrine:migrations:migrate --env=test --no-interaction --allow-no-migration
 
       - name: Validate Doctrine schema
         run: php bin/console doctrine:schema:validate --env=test --skip-sync
