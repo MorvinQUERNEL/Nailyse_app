@@ -1,0 +1,7 @@
+framework:
+    mailer:
+        dsn: '%env(MAILER_DSN)%'
+        envelope:
+            sender: 'hello@demomailtrap.co'
+        headers:
+            From: 'Nailyse <hello@demomailtrap.co>'

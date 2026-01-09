@@ -1,0 +1,90 @@
+security:
+    # Password hashing configuration
+    # Uses 'auto' to automatically select the best algorithm (bcrypt/argon2)
+    password_hashers:
+        Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
+
+    # User providers define how to load users from the database
+    providers:
+        app_user_provider:
+            entity:
+                class: App\Entity\User
+                property: email
+
+    # Firewalls define security rules for different parts of the application
+    firewalls:
+        dev:
+            # Ensure dev tools and static assets are always allowed
+            pattern: ^/(_profiler|_wdt|assets|build)/
+            security: false
+
+        # Public API endpoints (no authentication required)
+        api_public:
+            pattern: ^/api/(products|appointments)$
+            methods: [GET]
+            stateless: true
+            security: false
+
+        # Payment endpoint (public for checkout)
+        api_payment:
+            pattern: ^/api/payment/
+            stateless: true
+            security: false
+
+        # Authentication endpoints (login/register)
+        api_auth:
+            pattern: ^/api/(login|register)
+            stateless: true
+            json_login:
+                check_path: /api/login
+                username_path: email
+                password_path: password
+                success_handler: App\Security\AuthenticationSuccessHandler
+                failure_handler: App\Security\AuthenticationFailureHandler
+
+        # Protected API endpoints (requires authentication)
+        api:
+            pattern: ^/api
+            stateless: true
+            provider: app_user_provider
+            custom_authenticators:
+                - App\Security\ApiTokenAuthenticator
+
+        # Main firewall (for future web interface if needed)
+        main:
+            lazy: true
+            provider: app_user_provider
+
+    # Access control rules
+    # Define which routes require which roles
+    # Note: Only the *first* matching rule is applied
+    access_control:
+        # Public endpoints - anyone can access
+        - { path: ^/api/login, roles: PUBLIC_ACCESS }
+        - { path: ^/api/register, roles: PUBLIC_ACCESS }
+        - { path: ^/api/products$, roles: PUBLIC_ACCESS, methods: [GET] }
+        - { path: ^/api/appointments$, roles: PUBLIC_ACCESS, methods: [POST] }
+        - { path: ^/api/payment/, roles: PUBLIC_ACCESS }
+
+        # Admin-only endpoints
+        - { path: ^/api/users, roles: ROLE_ADMIN }
+        - { path: ^/api/products, roles: ROLE_ADMIN, methods: [POST, PUT, DELETE] }
+        - { path: ^/api/appointments, roles: ROLE_ADMIN, methods: [PUT, DELETE] }
+
+        # All other /api routes require authentication
+        - { path: ^/api, roles: ROLE_USER }
+
+    # Role hierarchy - admins automatically have all user permissions
+    role_hierarchy:
+        ROLE_ADMIN: [ROLE_USER]
+
+when@test:
+    security:
+        password_hashers:
+            # Password hashers are resource-intensive by design to ensure security.
+            # In tests, it's safe to reduce their cost to improve performance.
+            Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
+                algorithm: auto
+                cost: 4 # Lowest possible value for bcrypt
+                time_cost: 3 # Lowest possible value for argon
+                memory_cost: 10 # Lowest possible value for argon
