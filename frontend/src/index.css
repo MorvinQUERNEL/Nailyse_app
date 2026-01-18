@@ -40,38 +40,49 @@ body {
     width: 100% !important;
 }
 
+/* Reset react-calendar default styles */
+.nailyse-calendar.react-calendar {
+    background: transparent !important;
+    border: none !important;
+}
+
 /* Navigation */
 .nailyse-calendar .react-calendar__navigation {
     margin-bottom: 1rem;
     height: auto;
+    background: transparent !important;
 }
 
 .nailyse-calendar .react-calendar__navigation button {
     font-family: 'Cormorant Garant', serif !important;
     font-size: 1.25rem;
-    color: #1A1614;
-    background: transparent;
-    border: none;
+    color: #1A1614 !important;
+    background: transparent !important;
+    border: none !important;
     min-width: 44px;
     padding: 0.5rem;
 }
 
 .dark .nailyse-calendar .react-calendar__navigation button {
-    color: #FAF7F2;
+    color: #FAF7F2 !important;
+    background: transparent !important;
 }
 
 .nailyse-calendar .react-calendar__navigation button:hover:enabled,
 .nailyse-calendar .react-calendar__navigation button:focus {
-    background-color: #F5E6D3;
+    background-color: #F5E6D3 !important;
+    color: #1A1614 !important;
 }
 
 .dark .nailyse-calendar .react-calendar__navigation button:hover:enabled,
 .dark .nailyse-calendar .react-calendar__navigation button:focus {
-    background-color: #2D2420;
+    background-color: #2D2420 !important;
+    color: #FAF7F2 !important;
 }
 
 .nailyse-calendar .react-calendar__navigation button:disabled {
     opacity: 0.3;
+    background: transparent !important;
 }
 
 /* Weekday Headers */
@@ -79,98 +90,117 @@ body {
     text-transform: uppercase;
     font-size: 0.7rem;
     letter-spacing: 0.1em;
-    color: #C9A87C;
+    color: #C9A87C !important;
     font-weight: 500;
+    background: transparent !important;
+}
+
+.dark .nailyse-calendar .react-calendar__month-view__weekdays {
+    color: #C9A87C !important;
 }
 
 .nailyse-calendar .react-calendar__month-view__weekdays__weekday {
     padding: 0.5rem;
+    color: #C9A87C !important;
 }
 
 .nailyse-calendar .react-calendar__month-view__weekdays__weekday abbr {
     text-decoration: none;
+    color: inherit !important;
 }
 
 /* Day Tiles */
 .nailyse-calendar .react-calendar__tile {
     font-family: 'DM Sans', sans-serif !important;
     padding: 0.75rem 0.5rem;
-    background: transparent;
-    color: #1A1614;
-    border: none;
+    background: transparent !important;
+    color: #1A1614 !important;
+    border: none !important;
     transition: all 0.2s ease;
 }
 
 .dark .nailyse-calendar .react-calendar__tile {
-    color: #FAF7F2;
+    color: #FAF7F2 !important;
+    background: transparent !important;
 }
 
 .nailyse-calendar .react-calendar__tile:enabled:hover,
 .nailyse-calendar .react-calendar__tile:enabled:focus {
-    background-color: #F5E6D3;
+    background-color: #F5E6D3 !important;
+    color: #1A1614 !important;
 }
 
 .dark .nailyse-calendar .react-calendar__tile:enabled:hover,
 .dark .nailyse-calendar .react-calendar__tile:enabled:focus {
-    background-color: #2D2420;
+    background-color: #2D2420 !important;
+    color: #FAF7F2 !important;
 }
 
 /* Disabled Days */
 .nailyse-calendar .react-calendar__tile:disabled {
-    color: rgba(26, 22, 20, 0.3);
+    color: rgba(26, 22, 20, 0.3) !important;
+    background: transparent !important;
     cursor: not-allowed;
 }
 
 .dark .nailyse-calendar .react-calendar__tile:disabled {
-    color: rgba(250, 247, 242, 0.3);
+    color: rgba(250, 247, 242, 0.3) !important;
+    background: transparent !important;
 }
 
 /* Today */
 .nailyse-calendar .react-calendar__tile--now {
     background: rgba(201, 168, 124, 0.2) !important;
+    color: #1A1614 !important;
 }
 
 .dark .nailyse-calendar .react-calendar__tile--now {
     background: rgba(201, 168, 124, 0.15) !important;
+    color: #FAF7F2 !important;
 }
 
 /* Selected Day */
-.nailyse-calendar .react-calendar__tile--active {
+.nailyse-calendar .react-calendar__tile--active,
+.nailyse-calendar .react-calendar__tile--active:enabled,
+.nailyse-calendar .react-calendar__tile--active:enabled:hover,
+.nailyse-calendar .react-calendar__tile--active:enabled:focus {
     background: #722F37 !important;
     color: #FAF7F2 !important;
 }
 
-.dark .nailyse-calendar .react-calendar__tile--active {
+.dark .nailyse-calendar .react-calendar__tile--active,
+.dark .nailyse-calendar .react-calendar__tile--active:enabled,
+.dark .nailyse-calendar .react-calendar__tile--active:enabled:hover,
+.dark .nailyse-calendar .react-calendar__tile--active:enabled:focus {
     background: #C9A87C !important;
     color: #1A1614 !important;
 }
 
-.nailyse-calendar .react-calendar__tile--active:enabled:hover,
-.nailyse-calendar .react-calendar__tile--active:enabled:focus {
-    background: #4A1C2B !important;
-}
-
-.dark .nailyse-calendar .react-calendar__tile--active:enabled:hover,
-.dark .nailyse-calendar .react-calendar__tile--active:enabled:focus {
-    background: #F5E6D3 !important;
-}
-
 /* Neighboring months */
 .nailyse-calendar .react-calendar__month-view__days__day--neighboringMonth {
-    color: rgba(26, 22, 20, 0.3);
+    color: rgba(26, 22, 20, 0.3) !important;
 }
 
 .dark .nailyse-calendar .react-calendar__month-view__days__day--neighboringMonth {
-    color: rgba(250, 247, 242, 0.3);
+    color: rgba(250, 247, 242, 0.3) !important;
 }
 
-/* Weekend days (enabled) */
-.nailyse-calendar .react-calendar__month-view__days__day--weekend:not(:disabled) {
-    color: #722F37;
+/* Weekend days (enabled) - more specific selector */
+.nailyse-calendar .react-calendar__month-view__days__day--weekend:not(:disabled):not(.react-calendar__tile--active) {
+    color: #722F37 !important;
 }
 
-.dark .nailyse-calendar .react-calendar__month-view__days__day--weekend:not(:disabled) {
-    color: #C9A87C;
+.dark .nailyse-calendar .react-calendar__month-view__days__day--weekend:not(:disabled):not(.react-calendar__tile--active) {
+    color: #C9A87C !important;
+}
+
+/* Override any remaining default styles */
+.nailyse-calendar .react-calendar__month-view__days {
+    background: transparent !important;
+}
+
+.nailyse-calendar .react-calendar__month-view__days__day {
+    background: transparent !important;
 }
 
 /* ========================================
@@ -200,4 +230,20 @@ body {
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+}
+
+/* Fade in animation for popup */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
 }

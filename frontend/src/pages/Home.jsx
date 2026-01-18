@@ -13,11 +13,23 @@ const FloatingBlob = ({ className, delay = 0 }) => (
 
 const Home = () => {
     const [isVisible, setIsVisible] = useState(false);
+    const [showDemoPopup, setShowDemoPopup] = useState(false);
     const { t } = useLanguage();
 
     useEffect(() => {
         setIsVisible(true);
+
+        // Show demo popup only once per session
+        const hasSeenPopup = sessionStorage.getItem("nailyse_demo_popup_seen");
+        if (!hasSeenPopup) {
+            setShowDemoPopup(true);
+        }
     }, []);
+
+    const closeDemoPopup = () => {
+        setShowDemoPopup(false);
+        sessionStorage.setItem("nailyse_demo_popup_seen", "true");
+    };
 
     const services = [
         {
@@ -48,6 +60,51 @@ const Home = () => {
 
     return (
         <div className="relative min-h-screen overflow-hidden bg-cream dark:bg-chocolate transition-colors duration-500">
+            {/* Demo Popup */}
+            {showDemoPopup && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-chocolate/60 dark:bg-black/70 backdrop-blur-sm">
+                    <div className="relative bg-cream dark:bg-espresso max-w-md w-full p-8 shadow-2xl animate-fade-in">
+                        {/* Close button */}
+                        <button
+                            onClick={closeDemoPopup}
+                            className="absolute top-4 right-4 text-espresso/60 dark:text-cream/60 hover:text-wine dark:hover:text-rosegold transition-colors"
+                            aria-label="Fermer"
+                        >
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+
+                        {/* Decorative corner */}
+                        <div className="absolute top-0 left-0 w-16 h-16 border-t-2 border-l-2 border-rosegold/50" />
+                        <div className="absolute bottom-0 right-0 w-16 h-16 border-b-2 border-r-2 border-rosegold/50" />
+
+                        {/* Content */}
+                        <div className="text-center">
+                            <span className="inline-block font-body text-xs tracking-[0.3em] uppercase text-rosegold mb-4">
+                                Information
+                            </span>
+                            <h3 className="font-display text-3xl text-chocolate dark:text-cream mb-4">
+                                Site de <span className="italic text-wine dark:text-blush">Démonstration</span>
+                            </h3>
+                            <p className="font-body text-espresso/70 dark:text-cream/70 mb-6 leading-relaxed">
+                                Ce site est un projet de démonstration créé par{" "}
+                                <span className="font-semibold text-wine dark:text-rosegold">Morvin QUERNEL</span>.
+                                <br />
+                                Il présente les fonctionnalités d'une application de salon de manucure.
+                            </p>
+                            <button
+                                onClick={closeDemoPopup}
+                                className="group relative inline-flex items-center justify-center gap-2 px-8 py-3 bg-wine dark:bg-rosegold text-cream dark:text-chocolate font-body text-sm tracking-wider uppercase overflow-hidden transition-all duration-300"
+                            >
+                                <span className="relative z-10">Compris</span>
+                                <div className="absolute inset-0 bg-burgundy dark:bg-champagne translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Organic Background Shapes */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <FloatingBlob
